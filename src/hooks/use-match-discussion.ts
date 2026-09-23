@@ -18,6 +18,7 @@ import {
   type ReactionType,
 } from '@/lib/social/discussion';
 import { useAuth } from '@/providers/auth-provider';
+import { subscribeToMatchChanges } from '@/lib/realtime/match-channel';
 
 export function useMatchDiscussion(
   matchId: string | undefined,
@@ -76,9 +77,13 @@ export function useMatchDiscussion(
     }
 
     void load();
+    const unsubscribe = subscribeToMatchChanges(id, () => {
+      void load();
+    });
 
     return () => {
       active = false;
+      unsubscribe();
     };
   }, [eventKey, isLoggedIn, matchId, userId]);
 

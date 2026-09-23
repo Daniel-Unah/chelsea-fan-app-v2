@@ -20,6 +20,7 @@ import {
   type StoredEvent,
 } from '@/lib/sports/match-detail';
 import { loadMatchDetail } from '@/lib/sports/load-match';
+import { subscribeToMatchChanges } from '@/lib/realtime/match-channel';
 import { useAuth } from '@/providers/auth-provider';
 
 export default function MatchCenterScreen() {
@@ -41,11 +42,12 @@ export default function MatchCenterScreen() {
       return;
     }
 
+    const id = matchId;
     let active = true;
 
     async function load() {
       try {
-        const stored = await loadMatchDetail(matchId);
+        const stored = await loadMatchDetail(id);
 
         if (!active) {
           return;
@@ -71,9 +73,13 @@ export default function MatchCenterScreen() {
     }
 
     void load();
+    const unsubscribe = subscribeToMatchChanges(id, () => {
+      void load();
+    });
 
     return () => {
       active = false;
+      unsubscribe();
     };
   }, [isLoggedIn, matchId]);
 
