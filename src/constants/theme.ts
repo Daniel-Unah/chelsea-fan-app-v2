@@ -12,6 +12,7 @@ const palette = {
   secondary: '#FFFFFF',
   border: '#1F2937',
   link: '#60A5FA',
+  danger: '#F87171',
 } as const;
 
 export const Colors = {
