@@ -2,7 +2,7 @@
 
 Mobile-first social app for experiencing live matches together. Chelsea FC is the first team. The data model and app structure stay team-agnostic.
 
-This repository is at **Milestone 3: stored matches**. Accounts use email and password. Home, Matches, and Community are still placeholders. A temporary screen reads Chelsea matches from the database.
+This repository is at **Milestone 4: home and matches**. Accounts use email and password. Home shows Chelsea’s live match, next fixture, recent results, and an empty community section. Matches lists live, upcoming, and finished games with a competition filter. A temporary screen can sync the stored season.
 
 ## Requirements
 
@@ -46,13 +46,13 @@ Apply `supabase/migrations/20260923020000_create_profiles.sql` and `supabase/mig
 5. Open Profile, change the display name or bio, and save. Confirm the new values remain after a reload.
 6. Log out. Confirm the app returns to the login screen and the tabs stay unavailable until you log in again.
 
-## Milestone 3 manual test
+## Milestone 4 manual test
 
 1. Log in and open Home.
-2. Open Stored matches.
-3. Confirm Chelsea results and upcoming fixtures appear without a sports provider request from the app.
-4. Press Sync. Confirm the same matches remain, loaded again from the database.
+2. Confirm the next Chelsea fixture, recent results, and an empty live and community state when nothing is live or posted.
+3. Open Matches. Switch between Live, Upcoming, and Results, and filter by competition.
+4. Confirm the lists come from the database and the app does not call a sports provider.
 
 ## Deferred
 
-Favorite team, avatar upload, Google sign-in, match center, comments, realtime, predictions, and notifications.
+Favorite team, avatar upload, Google sign-in, match center, comments, realtime, predictions, and notifications. Match events, lineups, and statistics stay empty until a football-data.org sync is configured.
