@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { type Href, useRouter } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FontFamily, Spacing } from '@/constants/theme';
@@ -12,10 +13,15 @@ type MatchCardProps = {
 
 export function MatchCard({ match, emphasis = false }: MatchCardProps) {
   const theme = useTheme();
+  const router = useRouter();
   const kickoff = new Date(match.kickoffTime);
 
   return (
-    <View
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => {
+        router.push(`/match/${match.id}` as Href);
+      }}
       style={[
         styles.card,
         {
@@ -53,7 +59,7 @@ export function MatchCard({ match, emphasis = false }: MatchCardProps) {
         })}
         {match.venue ? ` · ${match.venue}` : ''}
       </ThemedText>
-    </View>
+    </Pressable>
   );
 }
 
