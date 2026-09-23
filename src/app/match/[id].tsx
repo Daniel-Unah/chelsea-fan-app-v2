@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DiscussionPanel } from '@/components/social/discussion-panel';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontFamily, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useMatchDiscussion } from '@/hooks/use-match-discussion';
 import { useTheme } from '@/hooks/use-theme';
 import {
   cardEvents,
@@ -29,6 +31,10 @@ export default function MatchCenterScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const matchId = Array.isArray(id) ? id[0] : id;
+  const discussion = useMatchDiscussion(
+    matchId,
+    detail?.events.map((event) => event.id) ?? [],
+  );
 
   useEffect(() => {
     if (!isLoggedIn || !matchId) {
@@ -137,7 +143,16 @@ export default function MatchCenterScreen() {
                   {detail.referee ? ` · ${detail.referee}` : ''}
                 </ThemedText>
               </View>
-              <EventSection title="Timeline" events={detail.events} />
+              <DiscussionPanel
+                title="Discussion"
+                eventId={null}
+                discussion={discussion}
+              />
+              <EventSection
+                title="Timeline"
+                events={detail.events}
+                discussion={discussion}
+              />
               <EventSection title="Goals" events={goalEvents(detail.events)} />
               <EventSection title="Cards" events={cardEvents(detail.events)} />
               <EventSection
@@ -172,9 +187,11 @@ function ScoreRow({ name, score }: { name: string; score: number | null }) {
 function EventSection({
   title,
   events,
+  discussion,
 }: {
   title: string;
   events: StoredEvent[];
+  discussion?: ReturnType<typeof useMatchDiscussion>;
 }) {
   const theme = useTheme();
 
@@ -195,17 +212,29 @@ function EventSection({
               },
             ]}
           >
-            <ThemedText style={styles.minute}>{minuteLabel(event)}</ThemedText>
-            <View style={styles.eventBody}>
-              <ThemedText style={styles.eventTitle}>
-                {eventLabel(event.type)}
+            <View style={styles.eventRow}>
+              <ThemedText style={styles.minute}>
+                {minuteLabel(event)}
               </ThemedText>
-              <ThemedText themeColor="textSecondary" style={styles.metaText}>
-                {[event.playerName, event.relatedPlayerName, event.teamName]
-                  .filter((part) => part)
-                  .join(' · ') || event.description}
-              </ThemedText>
+              <View style={styles.eventBody}>
+                <ThemedText style={styles.eventTitle}>
+                  {eventLabel(event.type)}
+                </ThemedText>
+                <ThemedText themeColor="textSecondary" style={styles.metaText}>
+                  {[event.playerName, event.relatedPlayerName, event.teamName]
+                    .filter((part) => part)
+                    .join(' · ') || event.description}
+                </ThemedText>
+              </View>
             </View>
+            {discussion ? (
+              <DiscussionPanel
+                title="Event discussion"
+                eventId={event.id}
+                discussion={discussion}
+                showStatus={false}
+              />
+            ) : null}
           </View>
         ))
       )}
@@ -301,11 +330,14 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   event: {
-    flexDirection: 'row',
     gap: Spacing.three,
     borderWidth: 1,
     borderRadius: 12,
     padding: Spacing.three,
+  },
+  eventRow: {
+    flexDirection: 'row',
+    gap: Spacing.three,
   },
   minute: {
     fontFamily: FontFamily.bold,

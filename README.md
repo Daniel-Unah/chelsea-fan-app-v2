@@ -2,7 +2,7 @@
 
 Mobile-first social app for experiencing live matches together. Chelsea FC is the first team. The data model and app structure stay team-agnostic.
 
-This repository is at **Milestone 5: match center**. Accounts use email and password. Home shows Chelsea’s live match, next fixture, recent results, and an empty community section. Matches lists live, upcoming, and finished games with a competition filter. Opening a match shows the score, status, and any stored timeline. A temporary screen can sync the stored season.
+This repository is at **Milestone 6: match discussion**. Accounts use email and password. Home shows Chelsea’s live match, next fixture, recent results, and an empty community section. Matches lists live, upcoming, and finished games with a competition filter. Opening a match shows the score, status, stored timeline, comments, replies, and reactions. A temporary screen can sync the stored season.
 
 ## Requirements
 
@@ -23,7 +23,7 @@ On Windows, copy the example env file with `copy .env.example .env`.
 
 Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `.env`, then restart Expo. Use the project URL and the publishable key. Sports provider keys and `SUPABASE_SERVICE_ROLE_KEY` stay on the server and must never be committed.
 
-Apply `supabase/migrations/20260923020000_create_profiles.sql` and `supabase/migrations/20260923200000_create_sports_tables.sql` before creating an account. For an immediate session after signup, turn off email confirmation in the Supabase dashboard under Authentication, Providers, Email.
+Apply `supabase/migrations/20260923020000_create_profiles.sql`, `supabase/migrations/20260923200000_create_sports_tables.sql`, and `supabase/migrations/20260923201537_create_social_tables.sql` before creating an account. For an immediate session after signup, turn off email confirmation in the Supabase dashboard under Authentication, Providers, Email.
 
 `sports-sync` saves matches on the server. It loads the public-domain Premier League season file from [openfootball](https://github.com/openfootball/england). Set `SPORTS_API_KEY` as an Edge Function secret, using a token from [football-data.org](https://www.football-data.org/client/register), and redeploy `sports-sync` to sync from that provider instead. Do not put that token in `.env` with an `EXPO_PUBLIC_` prefix.
 
@@ -60,6 +60,13 @@ Apply `supabase/migrations/20260923020000_create_profiles.sql` and `supabase/mig
 3. Open an upcoming match. Confirm the kickoff is shown and the score is blank.
 4. Confirm goals, cards, substitutions, lineups, and statistics stay empty when nothing is stored, and the app does not call a sports provider.
 
+## Milestone 6 manual test
+
+1. Log in and open a match.
+2. Post a comment, reply to it, and add a heart, laugh, or shock reaction.
+3. Delete your own comment and confirm the reply goes with it.
+4. Report or block is available on someone else’s comment. Lineups, statistics, and the timeline stay empty until events are stored.
+
 ## Deferred
 
-Favorite team, avatar upload, Google sign-in, match center, comments, realtime, predictions, and notifications. Match events, lineups, and statistics stay empty until a football-data.org sync is configured.
+Favorite team, avatar upload, Google sign-in, realtime updates, predictions, and notifications. Match events, lineups, and statistics stay empty until a football-data.org sync is configured.
