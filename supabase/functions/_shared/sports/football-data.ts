@@ -2,6 +2,7 @@ import type {
   MatchStatus,
   SportsCompetition,
   SportsDataProvider,
+  SportsFixture,
   SportsMatch,
   SportsMatchEvent,
   SportsMatchStatistics,
@@ -102,6 +103,13 @@ export function createFootballDataProvider(
     getLiveMatches(teamExternalId) {
       return getMatches(teamExternalId, 'IN_PLAY');
     },
+    async getFixtureFeed(teamExternalId) {
+      const statuses = ['SCHEDULED', 'FINISHED', 'IN_PLAY'];
+      const groups = await Promise.all(
+        statuses.map((status) => getFixtureGroup(teamExternalId, status)),
+      );
+      return groups.flat();
+    },
     async getMatch(externalId) {
       const body = await getJson(`/matches/${assertId(externalId)}`);
       return normalizeMatch(unwrapMatch(body));
@@ -122,10 +130,21 @@ export function createFootballDataProvider(
     teamExternalId: string,
     status: string,
   ): Promise<SportsMatch[]> {
+    const fixtures = await getFixtureGroup(teamExternalId, status);
+    return fixtures.map((fixture) => fixture.match);
+  }
+
+  async function getFixtureGroup(
+    teamExternalId: string,
+    status: string,
+  ): Promise<SportsFixture[]> {
     const body = await getJson(
       `/teams/${assertId(teamExternalId)}/matches?status=${status}&limit=5`,
     );
-    return readArray(body, 'matches').map(normalizeMatch);
+    return readArray(body, 'matches').map((match) => ({
+      match: normalizeMatch(match),
+      events: normalizeMatchEvents(match),
+    }));
   }
 }
 
@@ -137,6 +156,7 @@ export function normalizeTeam(value: unknown): SportsTeam {
     shortName:
       readString(record, 'shortName') ?? readRequiredString(record, 'name'),
     crestUrl: readString(record, 'crest'),
+    country: readNestedName(record, 'area'),
   };
 }
 
@@ -147,6 +167,7 @@ export function normalizeCompetition(value: unknown): SportsCompetition {
     name: readRequiredString(record, 'name'),
     code: readString(record, 'code'),
     emblemUrl: readString(record, 'emblem'),
+    country: readNestedName(record, 'area'),
   };
 }
 
@@ -183,15 +204,52 @@ export function normalizeMatch(value: unknown): SportsMatch {
   return {
     externalId: readId(record),
     competition: normalizeCompetition(record.competition),
+    season: normalizeMatchSeason(record.season),
     kickoff: readRequiredString(record, 'utcDate'),
     status: normalizeStatus(readString(record, 'status')),
     minute: readNumber(record, 'minute'),
     venue: readString(record, 'venue'),
+    referee: readReferee(record.referees),
+    homeTeamExternalId: readId(homeTeam),
+    awayTeamExternalId: readId(awayTeam),
     homeTeamName: readRequiredString(homeTeam, 'name'),
     awayTeamName: readRequiredString(awayTeam, 'name'),
+    homeCrestUrl: readString(homeTeam, 'crest'),
+    awayCrestUrl: readString(awayTeam, 'crest'),
     homeScore: readNumber(fullTime, 'home') ?? readNumber(fullTime, 'homeTeam'),
     awayScore: readNumber(fullTime, 'away') ?? readNumber(fullTime, 'awayTeam'),
   };
+}
+
+function normalizeMatchSeason(value: unknown): SportsSeason | null {
+  if (
+    !isRecord(value) ||
+    (typeof value.id !== 'number' && typeof value.id !== 'string')
+  ) {
+    return null;
+  }
+
+  const startDate = readString(value, 'startDate');
+  const endDate = readString(value, 'endDate');
+
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  return {
+    externalId: readId(value),
+    startDate,
+    endDate,
+    currentMatchday: readNumber(value, 'currentMatchday'),
+  };
+}
+
+function readReferee(value: unknown): string | null {
+  if (!Array.isArray(value) || !isRecord(value[0])) {
+    return null;
+  }
+
+  return readString(value[0], 'name');
 }
 
 export function normalizeMatchEvents(value: unknown): SportsMatchEvent[] {
@@ -223,12 +281,17 @@ function normalizeGoal(
   const scorerId = readStringId(scorer);
   const teamId = readStringId(team);
 
+  const assist = asRecord(record.assist ?? {}, 'assist');
+
   return {
     externalId: `fd:goal:${matchId}:${minute ?? 'na'}:${teamId ?? 'na'}:${scorerId ?? index}`,
     type: 'goal',
     minute,
+    extraMinute: readNumber(record, 'extraTime'),
     teamExternalId: teamId,
+    playerExternalId: scorerId,
     playerName: readString(scorer, 'name'),
+    relatedPlayerExternalId: readStringId(assist),
     detail: readString(record, 'type') ?? 'GOAL',
   };
 }
@@ -248,8 +311,11 @@ function normalizeBooking(
     externalId: `fd:booking:${matchId}:${minute ?? 'na'}:${playerId ?? index}`,
     type: 'booking',
     minute,
+    extraMinute: readNumber(record, 'extraTime'),
     teamExternalId: readStringId(team),
+    playerExternalId: playerId,
     playerName: readString(player, 'name'),
+    relatedPlayerExternalId: null,
     detail: readString(record, 'card') ?? 'CARD',
   };
 }
@@ -271,8 +337,11 @@ function normalizeSubstitution(
     externalId: `fd:sub:${matchId}:${minute ?? 'na'}:${readStringId(playerIn) ?? index}`,
     type: 'substitution',
     minute,
+    extraMinute: readNumber(record, 'extraTime'),
     teamExternalId: readStringId(team),
+    playerExternalId: readStringId(playerIn),
     playerName: playerInName,
+    relatedPlayerExternalId: readStringId(playerOut),
     detail: playerOutName ? `On for ${playerOutName}` : 'Substitution',
   };
 }
@@ -385,6 +454,19 @@ function readId(record: Record<string, unknown>): string {
   }
 
   throw new SportsProviderError('football-data.org omitted an id.', 502);
+}
+
+function readNestedName(
+  record: Record<string, unknown>,
+  key: string,
+): string | null {
+  const nested = record[key];
+
+  if (!isRecord(nested)) {
+    return null;
+  }
+
+  return readString(nested, 'name');
 }
 
 function readStringId(record: Record<string, unknown>): string | null {

@@ -1,6 +1,6 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { Redirect } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,36 +11,139 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import { useAuth } from '@/providers/auth-provider';
-import {
-  isSportsSnapshot,
-  type SportsMatch,
-  type SportsSnapshot,
-} from '../../../supabase/functions/_shared/sports/types';
+
+type StoredMatch = {
+  id: string;
+  kickoff_time: string;
+  status: string;
+  home_score: number | null;
+  away_score: number | null;
+  venue: string | null;
+  home_team: { name: string; slug: string } | null;
+  away_team: { name: string; slug: string } | null;
+  competition: { name: string } | null;
+};
 
 export default function SportsDataScreen() {
   const { isLoggedIn } = useAuth();
   const theme = useTheme();
-  const [snapshot, setSnapshot] = useState<SportsSnapshot | null>(null);
+  const [matches, setMatches] = useState<StoredMatch[]>([]);
+  const [eventCount, setEventCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+
+  const loadMatches = useCallback(async () => {
+    const client = getSupabaseClient();
+
+    if (!client) {
+      setError('Supabase is not configured.');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const [matchResult, eventResult] = await Promise.all([
+      client
+        .from('matches')
+        .select(
+          'id, kickoff_time, status, home_score, away_score, venue, home_team:teams!matches_home_team_id_fkey(name, slug), away_team:teams!matches_away_team_id_fkey(name, slug), competition:competitions(name)',
+        )
+        .order('kickoff_time', { ascending: true }),
+      client.from('match_events').select('id', { count: 'exact', head: true }),
+    ]);
+
+    if (matchResult.error) {
+      setError(matchResult.error.message);
+      setLoading(false);
+      return;
+    }
+
+    setMatches(
+      (matchResult.data ?? []).flatMap(toStoredMatch).filter(isChelseaMatch),
+    );
+    setEventCount(eventResult.count ?? 0);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn) {
       return;
     }
 
-    let active = true;
+    const client = getSupabaseClient();
 
-    async function load() {
-      await refresh(setSnapshot, setError, setLoading, () => active);
+    if (!client) {
+      return;
     }
 
-    void load();
+    let active = true;
+
+    async function loadStoredMatches() {
+      if (!client) {
+        return;
+      }
+
+      const [matchResult, eventResult] = await Promise.all([
+        client
+          .from('matches')
+          .select(
+            'id, kickoff_time, status, home_score, away_score, venue, home_team:teams!matches_home_team_id_fkey(name, slug), away_team:teams!matches_away_team_id_fkey(name, slug), competition:competitions(name)',
+          )
+          .order('kickoff_time', { ascending: true }),
+        client
+          .from('match_events')
+          .select('id', { count: 'exact', head: true }),
+      ]);
+
+      if (!active) {
+        return;
+      }
+
+      if (matchResult.error) {
+        setError(matchResult.error.message);
+        setLoading(false);
+        return;
+      }
+
+      setMatches(
+        (matchResult.data ?? []).flatMap(toStoredMatch).filter(isChelseaMatch),
+      );
+      setEventCount(eventResult.count ?? 0);
+      setLoading(false);
+    }
+
+    void loadStoredMatches();
 
     return () => {
       active = false;
     };
   }, [isLoggedIn]);
+
+  async function sync() {
+    const client = getSupabaseClient();
+
+    if (!client) {
+      setError('Supabase is not configured.');
+      return;
+    }
+
+    setSyncing(true);
+    setError(null);
+    const { error: syncError } = await client.functions.invoke('sports-sync', {
+      method: 'POST',
+    });
+    setSyncing(false);
+
+    if (syncError) {
+      setError(await readFunctionError(syncError));
+      return;
+    }
+
+    await loadMatches();
+  }
 
   if (!isLoggedIn) {
     return <Redirect href="/login" />;
@@ -51,26 +154,39 @@ export default function SportsDataScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content}>
           <ThemedText accessibilityRole="header" type="title">
-            Sports data
+            Stored matches
           </ThemedText>
           <ThemedText themeColor="textSecondary">
-            Temporary view of Chelsea data from the server. The provider key
-            stays on the server.
+            Chelsea matches loaded from the database. Sync runs on the server.
           </ThemedText>
           {loading ? (
-            <ThemedText themeColor="textSecondary">
-              Loading sports data
-            </ThemedText>
+            <ThemedText themeColor="textSecondary">Loading matches</ThemedText>
           ) : null}
           {error ? (
             <ThemedText style={{ color: theme.danger }}>{error}</ThemedText>
           ) : null}
-          {snapshot ? <SnapshotDetails snapshot={snapshot} /> : null}
+          {!loading && matches.length === 0 ? (
+            <ThemedText>No matches stored yet.</ThemedText>
+          ) : null}
+          {matches.map((match) => (
+            <ThemedText key={match.id}>
+              {match.home_team?.name ?? 'Home'} {scoreText(match)}{' '}
+              {match.away_team?.name ?? 'Away'}
+              {' · '}
+              {match.status}
+              {match.competition ? ` · ${match.competition.name}` : ''}
+            </ThemedText>
+          ))}
+          {!loading && matches.length > 0 ? (
+            <ThemedText themeColor="textSecondary">
+              {eventCount} stored events
+            </ThemedText>
+          ) : null}
           <Button
-            label={loading ? 'Loading' : 'Refresh'}
-            disabled={loading}
+            label={syncing ? 'Syncing' : 'Sync'}
+            disabled={syncing}
             onPress={() => {
-              void refresh(setSnapshot, setError, setLoading, () => true);
+              void sync();
             }}
           />
         </ScrollView>
@@ -79,130 +195,77 @@ export default function SportsDataScreen() {
   );
 }
 
-function SnapshotDetails({ snapshot }: { snapshot: SportsSnapshot }) {
-  const focus = snapshot.match;
+function toStoredMatch(value: unknown): StoredMatch[] {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== 'string' ||
+    typeof value.kickoff_time !== 'string'
+  ) {
+    return [];
+  }
 
+  if (typeof value.status !== 'string') {
+    return [];
+  }
+
+  return [
+    {
+      id: value.id,
+      kickoff_time: value.kickoff_time,
+      status: value.status,
+      home_score:
+        typeof value.home_score === 'number' ? value.home_score : null,
+      away_score:
+        typeof value.away_score === 'number' ? value.away_score : null,
+      venue: typeof value.venue === 'string' ? value.venue : null,
+      home_team: teamNamed(value.home_team),
+      away_team: teamNamed(value.away_team),
+      competition: labelNamed(value.competition),
+    },
+  ];
+}
+
+function teamNamed(value: unknown): { name: string; slug: string } | null {
+  if (Array.isArray(value)) {
+    return teamNamed(value[0]);
+  }
+
+  if (
+    !isRecord(value) ||
+    typeof value.name !== 'string' ||
+    typeof value.slug !== 'string'
+  ) {
+    return null;
+  }
+
+  return { name: value.name, slug: value.slug };
+}
+
+function labelNamed(value: unknown): { name: string } | null {
+  if (Array.isArray(value)) {
+    return labelNamed(value[0]);
+  }
+
+  if (!isRecord(value) || typeof value.name !== 'string') {
+    return null;
+  }
+
+  return { name: value.name };
+}
+
+function isChelseaMatch(match: StoredMatch): boolean {
   return (
-    <>
-      <ThemedText type="title">{snapshot.team.name}</ThemedText>
-      <ThemedText themeColor="textSecondary">
-        {snapshot.squad.length} squad players · {snapshot.competitions.length}{' '}
-        competitions
-      </ThemedText>
-      <ThemedText>
-        {snapshot.competitions
-          .map((competition) => competition.name)
-          .join(', ')}
-      </ThemedText>
-      <ThemedText themeColor="textSecondary">Squad</ThemedText>
-      <ThemedText>
-        {snapshot.squad
-          .slice(0, 8)
-          .map((player) => player.name)
-          .join(', ')}
-      </ThemedText>
-      <MatchList title="Live" matches={snapshot.liveMatches} />
-      <MatchList title="Upcoming" matches={snapshot.upcomingMatches} />
-      <MatchList title="Recent" matches={snapshot.recentMatches} />
-      {focus ? (
-        <>
-          <ThemedText themeColor="textSecondary">Match detail</ThemedText>
-          <ThemedText>
-            {focus.homeTeamName} {scoreText(focus)} {focus.awayTeamName}
-          </ThemedText>
-          <ThemedText themeColor="textSecondary">
-            {focus.competition.name}
-          </ThemedText>
-          <ThemedText themeColor="textSecondary">Events</ThemedText>
-          {snapshot.events.length === 0 ? (
-            <ThemedText>No events returned for the selected match.</ThemedText>
-          ) : (
-            snapshot.events.map((event) => (
-              <ThemedText key={event.externalId}>
-                {`${event.minute ?? '–'}' ${event.type}: ${event.playerName ?? 'Unknown'} (${event.detail})`}
-              </ThemedText>
-            ))
-          )}
-        </>
-      ) : (
-        <ThemedText>No match was available to inspect.</ThemedText>
-      )}
-    </>
+    match.home_team?.slug === 'chelsea-fc' ||
+    match.away_team?.slug === 'chelsea-fc'
   );
 }
 
-function MatchList({
-  title,
-  matches,
-}: {
-  title: string;
-  matches: SportsMatch[];
-}) {
-  return (
-    <>
-      <ThemedText themeColor="textSecondary">{title}</ThemedText>
-      {matches.length === 0 ? (
-        <ThemedText>None</ThemedText>
-      ) : (
-        matches.map((match) => (
-          <ThemedText key={match.externalId}>
-            {match.homeTeamName} {scoreText(match)} {match.awayTeamName}
-          </ThemedText>
-        ))
-      )}
-    </>
-  );
-}
-
-function scoreText(match: SportsMatch): string {
-  if (match.homeScore === null || match.awayScore === null) {
+function scoreText(match: StoredMatch): string {
+  if (match.home_score === null || match.away_score === null) {
     return 'vs';
   }
 
-  return `${match.homeScore}-${match.awayScore}`;
-}
-
-async function refresh(
-  setSnapshot: (snapshot: SportsSnapshot | null) => void,
-  setError: (error: string | null) => void,
-  setLoading: (loading: boolean) => void,
-  isActive: () => boolean,
-) {
-  const client = getSupabaseClient();
-
-  if (!client) {
-    setError('Supabase is not configured.');
-    setLoading(false);
-    return;
-  }
-
-  setLoading(true);
-  setError(null);
-
-  const { data, error } = await client.functions.invoke('sports-data', {
-    method: 'GET',
-  });
-
-  if (!isActive()) {
-    return;
-  }
-
-  if (isRecord(data) && typeof data.error === 'string') {
-    setSnapshot(null);
-    setError(data.error);
-    setLoading(false);
-    return;
-  }
-
-  if (error || !isSportsSnapshot(data)) {
-    setSnapshot(null);
-    setError(await readFunctionError(error));
-    setLoading(false);
-    return;
-  }
-
-  setSnapshot(data);
-  setLoading(false);
+  return `${match.home_score}-${match.away_score}`;
 }
 
 async function readFunctionError(error: unknown): Promise<string> {
@@ -214,7 +277,7 @@ async function readFunctionError(error: unknown): Promise<string> {
         return body.error;
       }
     } catch {
-      return 'Sports data could not be loaded.';
+      return 'Sync could not be completed.';
     }
   }
 
@@ -222,7 +285,7 @@ async function readFunctionError(error: unknown): Promise<string> {
     return error.message;
   }
 
-  return 'Sports data could not be loaded.';
+  return 'Sync could not be completed.';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

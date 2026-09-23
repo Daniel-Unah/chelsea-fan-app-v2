@@ -72,6 +72,7 @@ describe('normalize football-data.org payloads', () => {
       name: 'Chelsea FC',
       shortName: 'Chelsea',
       crestUrl: 'https://example.com/chelsea.png',
+      country: null,
     });
   });
 
@@ -152,6 +153,7 @@ describe('loadTeamSnapshot', () => {
       name: 'Chelsea FC',
       shortName: 'Chelsea',
       crestUrl: null,
+      country: 'England',
     };
     const match = normalizeMatch(matchPayload);
     const provider: SportsDataProvider = {
@@ -177,6 +179,9 @@ describe('loadTeamSnapshot', () => {
       getUpcomingMatches: vi.fn(async () => []),
       getRecentMatches: vi.fn(async () => [match]),
       getLiveMatches: vi.fn(async () => []),
+      getFixtureFeed: vi.fn(async () => [
+        { match, events: normalizeMatchEvents(matchPayload) },
+      ]),
       getMatch: vi.fn(async () => match),
       getMatchEvents: vi.fn(async () => normalizeMatchEvents(matchPayload)),
       getMatchStatistics: vi.fn(async () => ({

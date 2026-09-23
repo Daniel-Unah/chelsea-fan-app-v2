@@ -1,3 +1,4 @@
+import type { SyncBundle } from './sync-plan.ts';
 import type { SportsDataProvider, SportsSnapshot } from './types.ts';
 
 export async function loadTeamSnapshot(
@@ -37,4 +38,18 @@ export async function loadTeamSnapshot(
     match,
     events,
   };
+}
+
+export async function loadSyncBundle(
+  provider: SportsDataProvider,
+  teamExternalId: string,
+): Promise<SyncBundle> {
+  const [team, competitions, squad, fixtures] = await Promise.all([
+    provider.getTeam(teamExternalId),
+    provider.getCompetitions(),
+    provider.getTeamSquad(teamExternalId),
+    provider.getFixtureFeed(teamExternalId),
+  ]);
+
+  return { team, competitions, squad, fixtures };
 }

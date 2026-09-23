@@ -8,6 +8,7 @@ export type SportsTeam = {
   name: string;
   shortName: string;
   crestUrl: string | null;
+  country: string | null;
 };
 
 export type SportsCompetition = {
@@ -15,6 +16,7 @@ export type SportsCompetition = {
   name: string;
   code: string | null;
   emblemUrl: string | null;
+  country: string | null;
 };
 
 export type SportsSeason = {
@@ -36,22 +38,36 @@ export type SportsPlayer = {
 export type SportsMatch = {
   externalId: string;
   competition: SportsCompetition;
+  season: SportsSeason | null;
   kickoff: string;
   status: MatchStatus;
   minute: number | null;
   venue: string | null;
+  referee: string | null;
+  homeTeamExternalId: string;
+  awayTeamExternalId: string;
   homeTeamName: string;
   awayTeamName: string;
+  homeCrestUrl: string | null;
+  awayCrestUrl: string | null;
   homeScore: number | null;
   awayScore: number | null;
+};
+
+export type SportsFixture = {
+  match: SportsMatch;
+  events: SportsMatchEvent[];
 };
 
 export type SportsMatchEvent = {
   externalId: string;
   type: MatchEventType;
   minute: number | null;
+  extraMinute: number | null;
   teamExternalId: string | null;
+  playerExternalId: string | null;
   playerName: string | null;
+  relatedPlayerExternalId: string | null;
   detail: string;
 };
 
@@ -93,6 +109,7 @@ export interface SportsDataProvider {
   getUpcomingMatches(teamExternalId: string): Promise<SportsMatch[]>;
   getRecentMatches(teamExternalId: string): Promise<SportsMatch[]>;
   getLiveMatches(teamExternalId: string): Promise<SportsMatch[]>;
+  getFixtureFeed(teamExternalId: string): Promise<SportsFixture[]>;
   getMatch(externalId: string): Promise<SportsMatch>;
   getMatchEvents(externalId: string): Promise<SportsMatchEvent[]>;
   getMatchStatistics(externalId: string): Promise<SportsMatchStatistics>;

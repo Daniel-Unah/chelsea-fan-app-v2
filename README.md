@@ -2,14 +2,14 @@
 
 Mobile-first social app for experiencing live matches together. Chelsea FC is the first team. The data model and app structure stay team-agnostic.
 
-This repository is at **Milestone 2: sports data**. Accounts use email and password. Home, Matches, and Community are still placeholders. A temporary screen loads Chelsea data through a server-side provider.
+This repository is at **Milestone 3: stored matches**. Accounts use email and password. Home, Matches, and Community are still placeholders. A temporary screen reads Chelsea matches from the database.
 
 ## Requirements
 
 - Node.js 22.13 or newer
 - npm 10
 - Expo Go, or a simulator, for a device preview
-- A Supabase project with the profiles migration applied
+- A Supabase project with the profiles and sports migrations applied
 
 ## Setup
 
@@ -23,9 +23,9 @@ On Windows, copy the example env file with `copy .env.example .env`.
 
 Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `.env`, then restart Expo. Use the project URL and the publishable key. Sports provider keys and `SUPABASE_SERVICE_ROLE_KEY` stay on the server and must never be committed.
 
-Apply `supabase/migrations/20260923020000_create_profiles.sql` to that project before creating an account. For an immediate session after signup, turn off email confirmation in the Supabase dashboard under Authentication, Providers, Email.
+Apply `supabase/migrations/20260923020000_create_profiles.sql` and `supabase/migrations/20260923200000_create_sports_tables.sql` before creating an account. For an immediate session after signup, turn off email confirmation in the Supabase dashboard under Authentication, Providers, Email.
 
-Sports data is loaded by the `sports-data` Edge Function. Set `SPORTS_API_KEY` as a secret on that project, using a token from [football-data.org](https://www.football-data.org/client/register). Do not put that token in `.env` with an `EXPO_PUBLIC_` prefix.
+`sports-sync` saves matches on the server. It loads the public-domain Premier League season file from [openfootball](https://github.com/openfootball/england). Set `SPORTS_API_KEY` as an Edge Function secret, using a token from [football-data.org](https://www.football-data.org/client/register), and redeploy `sports-sync` to sync from that provider instead. Do not put that token in `.env` with an `EXPO_PUBLIC_` prefix.
 
 ## Scripts
 
@@ -46,14 +46,13 @@ Sports data is loaded by the `sports-data` Edge Function. Set `SPORTS_API_KEY` a
 5. Open Profile, change the display name or bio, and save. Confirm the new values remain after a reload.
 6. Log out. Confirm the app returns to the login screen and the tabs stay unavailable until you log in again.
 
-## Milestone 2 manual test
+## Milestone 3 manual test
 
-1. Confirm `SPORTS_API_KEY` is set as a Supabase Edge Function secret and `sports-data` is deployed.
-2. Log in and open Home.
-3. Open Inspect sports data.
-4. Confirm the screen shows Chelsea, competitions, squad names, fixtures, one match, and that match's events.
-5. Confirm the provider token is not present in the app source, `.env` values read by Expo, or the screen.
+1. Log in and open Home.
+2. Open Stored matches.
+3. Confirm Chelsea results and upcoming fixtures appear without a sports provider request from the app.
+4. Press Sync. Confirm the same matches remain, loaded again from the database.
 
 ## Deferred
 
-Favorite team, avatar upload, Google sign-in, saved sports data, match center, comments, realtime, predictions, and notifications.
+Favorite team, avatar upload, Google sign-in, match center, comments, realtime, predictions, and notifications.

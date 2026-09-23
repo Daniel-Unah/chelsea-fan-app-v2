@@ -10,7 +10,7 @@ export default function HomeScreen() {
       message="Your sports home will show the next match, live games, and community activity."
       footer={
         <Link href="/dev/sports">
-          <ThemedText themeColor="link">Inspect sports data</ThemedText>
+          <ThemedText themeColor="link">Stored matches</ThemedText>
         </Link>
       }
     />
