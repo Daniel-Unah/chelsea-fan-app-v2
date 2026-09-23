@@ -1,4 +1,10 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+  Geist_400Regular,
+  Geist_600SemiBold,
+  Geist_700Bold,
+  useFonts,
+} from '@expo-google-fonts/geist';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
@@ -7,10 +13,19 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Geist_400Regular,
+    Geist_600SemiBold,
+    Geist_700Bold,
+  });
   const colorScheme = useColorScheme();
   const scheme = colorScheme === 'dark' ? 'dark' : 'light';
   const colors = Colors[scheme];
   const navigationTheme = scheme === 'dark' ? DarkTheme : DefaultTheme;
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -27,7 +42,7 @@ export default function RootLayout() {
           },
         }}
       >
-        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        <StatusBar style="light" />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
         </Stack>

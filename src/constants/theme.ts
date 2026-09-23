@@ -1,31 +1,25 @@
 /**
- * Launch palette. Screens should use these tokens.
- * A team's own colors can replace them once team records exist.
+ * Visual language taken from the Chelsea Fan App site.
+ * The same palette is used in light and dark mode so the app stays on this look.
  */
-export const Colors = {
-  light: {
-    text: '#0B1F33',
-    textSecondary: '#5C6B7A',
-    background: '#F4F7FB',
-    backgroundElement: '#FFFFFF',
-    backgroundSelected: '#E6EEF6',
-    primary: '#034694',
-    secondary: '#DBA111',
-    border: '#D5DEE8',
-  },
-  dark: {
-    text: '#F4F7FB',
-    textSecondary: '#B7C3D0',
-    background: '#071422',
-    backgroundElement: '#102033',
-    backgroundSelected: '#17304A',
-    primary: '#6BA6E8',
-    secondary: '#E3C36A',
-    border: '#1E3348',
-  },
+const palette = {
+  text: '#EDEDED',
+  textSecondary: '#9CA3AF',
+  background: '#070B14',
+  backgroundElement: '#111827',
+  backgroundSelected: '#1E293B',
+  primary: '#1D4ED8',
+  secondary: '#FFFFFF',
+  border: '#1F2937',
+  link: '#60A5FA',
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export const Colors = {
+  light: palette,
+  dark: palette,
+} as const;
+
+export type ThemeColor = keyof typeof palette;
 
 export const Spacing = {
   half: 2,
@@ -37,4 +31,10 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const MaxContentWidth = 480;
+export const FontFamily = {
+  regular: 'Geist_400Regular',
+  semibold: 'Geist_600SemiBold',
+  bold: 'Geist_700Bold',
+} as const;
+
+export const MaxContentWidth = 560;

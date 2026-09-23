@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 
+import { FontFamily } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function TabLayout() {
@@ -10,15 +11,16 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.primary,
+        tabBarActiveTintColor: theme.link,
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
           backgroundColor: theme.background,
           borderTopColor: theme.border,
+          borderTopWidth: 1,
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '600',
+          fontFamily: FontFamily.semibold,
         },
       }}
     >

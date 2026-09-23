@@ -1,6 +1,6 @@
 import { StyleSheet, Text, type TextProps } from 'react-native';
 
-import { ThemeColor } from '@/constants/theme';
+import { FontFamily, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
@@ -31,13 +31,13 @@ export function ThemedText({
 
 const styles = StyleSheet.create({
   default: {
+    fontFamily: FontFamily.regular,
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: '500',
   },
   title: {
+    fontFamily: FontFamily.bold,
     fontSize: 28,
     lineHeight: 34,
-    fontWeight: '700',
   },
 });
